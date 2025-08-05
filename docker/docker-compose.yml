@@ -1,0 +1,257 @@
+version: '3.8'
+
+services:
+  # API Gateway (Node.js)
+  api-gateway:
+    build: 
+      context: ../api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=dev-secret-key
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Database Manager (Python)
+  database-manager:
+    build:
+      context: ../database-manager
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=sqlite:///app.db
+    volumes:
+      - db-data:/app/data
+      - db-logs:/app/logs
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Code Generator (Java)
+  code-generator:
+    build:
+      context: ../code-generator
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+      - SPRING_PROFILES_ACTIVE=development
+    volumes:
+      - generator-templates:/app/templates
+      - generator-output:/app/output
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Performance Monitor (C++)
+  performance-monitor:
+    build:
+      context: ../performance-monitor
+      dockerfile: Dockerfile
+    ports:
+      - "9000:9000"
+    environment:
+      - MONITOR_INTERVAL=5
+      - LOG_LEVEL=INFO
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Task Automation (PHP)
+  task-automation:
+    build:
+      context: ../task-automation
+      dockerfile: Dockerfile
+    ports:
+      - "7000:7000"
+    environment:
+      - PHP_ENV=development
+      - DB_CONNECTION=sqlite
+      - DB_DATABASE=/app/data/automation.db
+    volumes:
+      - automation-data:/app/data
+      - automation-logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Go Microservice
+  go-microservice:
+    build:
+      context: ../go-microservice
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - GO_ENV=development
+      - PORT=8080
+      - LOG_LEVEL=info
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Rust Data Processor
+  rust-data-processor:
+    build:
+      context: ../rust-data-processor
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - RUST_ENV=development
+      - RUST_LOG=info
+      - DATABASE_URL=sqlite://data/processor.db
+    volumes:
+      - rust-data:/app/data
+      - rust-exports:/app/exports
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Web Dashboard (React/TypeScript)
+  web-dashboard:
+    build:
+      context: ../web-dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_GATEWAY_URL=http://localhost:3000
+      - REACT_APP_ENV=development
+    depends_on:
+      - api-gateway
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=devtoolkit
+      - POSTGRES_USER=devuser
+      - POSTGRES_PASSWORD=devpass123
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # MongoDB
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=adminpass123
+      - MONGO_INITDB_DATABASE=devtoolkit
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      - api-gateway
+      - web-dashboard
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - devtoolkit-network
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  db-logs:
+  generator-templates:
+  generator-output:
+  automation-data:
+  automation-logs:
+  rust-data:
+  rust-exports:
+  redis-data:
+  postgres-data:
+  mongodb-data:
+  nginx-logs:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  devtoolkit-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
