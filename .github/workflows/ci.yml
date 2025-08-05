@@ -18,14 +18,25 @@ jobs:
     - uses: actions/checkout@v4
     - name: Validate project structure
       run: |
-        echo "📁 Project Structure Validation"
-        echo "================================"
-        ls -la
-        echo "\nFound configuration files:"
-        find . -type f \( -name "*.json" -o -name "*.toml" -o -name "*.xml" \) | head -10
-        echo "\nFound source files:"
-        find . -type f \( -name "*.py" -o -name "*.js" -o -name "*.go" -o -name "*.rs" -o -name "*.cpp" -o -name "*.php" -o -name "*.rb" \) | head -10
+        echo "📁 DevToolkit Project Structure Validation"
+        echo "==========================================="
+        echo "Repository: ${{ github.repository }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "Commit: ${{ github.sha }}"
+        echo ""
+        echo "Project Components:"
+        for dir in api-gateway database-manager code-generator go-microservice rust-data-processor performance-monitor web-dashboard task-automation ruby-analytics docker; do
+          if [ -d "$dir" ]; then
+            echo "✅ $dir/"
+            find "$dir" -type f -name "*.json" -o -name "*.toml" -o -name "*.xml" -o -name "*.py" -o -name "*.js" -o -name "*.go" -o -name "*.rs" -o -name "*.cpp" -o -name "*.php" -o -name "*.rb" | head -3 | sed 's/^/    /'
+          else
+            echo "❌ $dir/ (missing)"
+          fi
+        done
+        echo ""
         echo "✅ Structure validation complete"
+        echo "Total files: $(find . -type f | wc -l)"
+        echo "Source files: $(find . -type f \( -name "*.py" -o -name "*.js" -o -name "*.go" -o -name "*.rs" -o -name "*.cpp" -o -name "*.php" -o -name "*.rb" -o -name "*.java" \) | wc -l)"
   test-nodejs:
     runs-on: ubuntu-latest
     strategy:
