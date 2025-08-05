@@ -20,7 +20,11 @@ jobs:
       run: |
         echo "📁 Project Structure Validation"
         echo "================================"
-        find . -type f -name "*.json" -o -name "*.toml" -o -name "*.xml" -o -name "*.py" -o -name "*.js" -o -name "*.go" -o -name "*.rs" -o -name "*.cpp" -o -name "*.php" -o -name "*.rb" | head -20
+        ls -la
+        echo "\nFound configuration files:"
+        find . -type f \( -name "*.json" -o -name "*.toml" -o -name "*.xml" \) | head -10
+        echo "\nFound source files:"
+        find . -type f \( -name "*.py" -o -name "*.js" -o -name "*.go" -o -name "*.rs" -o -name "*.cpp" -o -name "*.php" -o -name "*.rb" \) | head -10
         echo "✅ Structure validation complete"
   test-nodejs:
     runs-on: ubuntu-latest
@@ -160,10 +164,9 @@ jobs:
     - uses: actions/checkout@v4
     
     - name: Install Rust ${{ matrix.rust-version }}
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
         toolchain: ${{ matrix.rust-version }}
-        override: true
         components: rustfmt, clippy
     
     - name: Cache cargo build
@@ -302,7 +305,7 @@ jobs:
         output: 'trivy-results.sarif'
     
     - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v2
+      uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
         sarif_file: 'trivy-results.sarif'
